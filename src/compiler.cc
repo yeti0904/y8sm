@@ -46,6 +46,21 @@ uint8_t Compiler::StringToOpcode(std::string str) {
 	else if (str == "pop") {
 		return YETI8_INSTRUCTION_POP;
 	}
+	else if (str == "and") {
+		return YETI8_INSTRUCTION_AND;
+	}
+	else if (str == "or") {
+		return YETI8_INSTRUCTION_OR;
+	}
+	else if (str == "xor") {
+		return YETI8_INSTRUCTION_XOR;
+	}
+	else if (str == "lsh") {
+		return YETI8_INSTRUCTION_LSH;
+	}
+	else if (str == "rsh") {
+		return YETI8_INSTRUCTION_RSH;
+	}
 	else if (str == "hlt") {
 		return YETI8_INSTRUCTION_HLT;
 	}
@@ -158,7 +173,12 @@ std::vector <uint8_t> Compiler::Compile(
 					case YETI8_INSTRUCTION_ADD:
 					case YETI8_INSTRUCTION_SUB:
 					case YETI8_INSTRUCTION_MUL:
-					case YETI8_INSTRUCTION_DIV: {
+					case YETI8_INSTRUCTION_DIV:
+					case YETI8_INSTRUCTION_AND:
+					case YETI8_INSTRUCTION_OR:
+					case YETI8_INSTRUCTION_XOR:
+					case YETI8_INSTRUCTION_LSH:
+					case YETI8_INSTRUCTION_RSH: {
 						++ i;
 						if (tokens[i].type != Lexer::TokenType::RegisterParameter) {
 							Errors::Expected(
