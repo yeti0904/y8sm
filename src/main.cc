@@ -6,6 +6,7 @@
 int main(int argc, char** argv) {
 	std::string srcFile;
 	std::string out = "out.bin";
+	bool        debug = false;
 
 	if (argc < 2) {
 		printf("Usage: %s [file/options]\n", argv[0]);
@@ -23,6 +24,9 @@ int main(int argc, char** argv) {
 				++ i;
 				out = argv[i];
 			}
+			else if ((arg == "-d") || (arg == "--debug")) {
+				debug = true;
+			}
 		}
 		else {
 			srcFile = arg;
@@ -30,6 +34,11 @@ int main(int argc, char** argv) {
 	}
 
 	auto tokens = Lexer::Lex(srcFile, FS::File::Read(srcFile));
+
+	if (debug) {
+		Lexer::DumpTokens(tokens);
+	}
+	
 	auto bin    = Compiler::Compile(srcFile, tokens);
 
 	FS::File::Binary::Write(out, bin);

@@ -17,10 +17,32 @@ std::vector <Lexer::Token> Lexer::Lex(std::string fname, std::string code) {
 			++ line;
 		}
 		switch (code[i]) {
+			case ':': {
+				if (!ret.empty() && (ret.back().type != Lexer::TokenType::End)) {
+					fprintf(
+						stderr, "[ERROR] %s:%lli: there can't be a label here\n",
+						fname.c_str(), (long long int) line
+					);
+					success = false;
+				}
+				else {
+					ret.push_back({
+						Lexer::TokenType::Label, reading, line
+					});
+					ret.push_back({
+						Lexer::TokenType::End, "", line
+					});
+					reading = "";
+				}
+
+				break;
+			}
+			case '\t':
 			case ' ':
 			case ',':
 			case '\0':
-			case '\n': {
+			case '\n':
+			case ';': {
 				if (reading.empty()) {
 					continue;
 				}
@@ -53,12 +75,9 @@ std::vector <Lexer::Token> Lexer::Lex(std::string fname, std::string code) {
 						});
 					}
 					else {
-						fprintf(
-							stderr,
-							"[ERROR] %s:%lli: can't interpret parameter: '%s'\n",
-							fname.c_str(), (long long int) line, reading.c_str()
-						);
-						success = false;
+						ret.push_back({
+							Lexer::TokenType::LabelParameter, reading, line
+						});
 					}
 
 					if ((code[i] == '\n') || (code[i] == '\0')) {
@@ -66,6 +85,12 @@ std::vector <Lexer::Token> Lexer::Lex(std::string fname, std::string code) {
 					}
 				}
 				reading = "";
+
+				if (code[i] == ';') {
+					while ((code[i] != '\n') && (code[i] != '\0')) {
+						++ i;
+					}
+				}
 				break;
 			}
 			default: {
@@ -87,16 +112,23 @@ std::string Lexer::TokenTypeAsString(TokenType type) {
 		case Lexer::TokenType::Opcode: {
 			return "opcode";
 		}
+		case Lexer::TokenType::Label: {
+			return "label";
+		}
 		case Lexer::TokenType::RegisterParameter: {
 			return "registerParameter";
 		}
 		case Lexer::TokenType::IntegerParameter: {
 			return "integerParameter";
 		}
+		case Lexer::TokenType::LabelParameter: {
+			return "labelParameter";
+		}
 		case Lexer::TokenType::End: {
 			return "end";
 		}
 	}
+	return "";
 }
 
 void Lexer::DumpTokens(const std::vector <Lexer::Token>& tokens) {
@@ -104,8 +136,9 @@ void Lexer::DumpTokens(const std::vector <Lexer::Token>& tokens) {
 		std::string type = Lexer::TokenTypeAsString(tokens[i].type);
 
 		printf(
-			"(%lli) %s: '%s'\n",
-			(long long int) i, type.c_str(), tokens[i].contents.c_str()
+			"%lli: (%lli) %s: '%s'\n",
+			(long long int) tokens[i].line, (long long int) i, type.c_str(),
+			tokens[i].contents.c_str()
 		);
 	}
 }

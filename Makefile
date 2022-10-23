@@ -10,7 +10,7 @@ CCACHE = ccache
 CXX    = clang++
 CXXVER = c++17
 CXXFLAGS = \
-	-O3 \
+	-O0 \
 	-std=${CXXVER} \
 	-Wall \
 	-Wextra \

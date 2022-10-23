@@ -6,8 +6,10 @@
 namespace Lexer {
 	enum class TokenType {
 		Opcode = 0,
+		Label,
 		RegisterParameter,
 		IntegerParameter,
+		LabelParameter,
 		End
 	};
 	struct Token {

@@ -3,6 +3,82 @@
 #include "bits.hh"
 #include "error.hh"
 
+std::unordered_map <std::string, uint16_t> Compiler::GenerateLabels(
+	std::string fname, const std::vector <Lexer::Token>& tokens
+) {
+	std::unordered_map <std::string, uint16_t> ret;
+	uint16_t                                   size = 0;
+	
+	for (size_t i = 0; i < tokens.size(); ++i) {
+		switch (tokens[i].type) {
+			case Lexer::TokenType::Opcode: {
+				auto instruction = Compiler::StringToOpcode(tokens[i].contents);
+				switch (instruction) {
+					case YETI8_INSTRUCTION_NOP:
+					case YETI8_INSTRUCTION_HLT: {
+						size += 1;
+						break;
+					}
+					case YETI8_INSTRUCTION_STO:
+					case YETI8_INSTRUCTION_LD: {
+						size += 4;
+						break;
+					}
+					case YETI8_INSTRUCTION_RCP:
+					case YETI8_INSTRUCTION_CMP:
+					case YETI8_INSTRUCTION_ADD:
+					case YETI8_INSTRUCTION_SUB:
+					case YETI8_INSTRUCTION_MUL:
+					case YETI8_INSTRUCTION_DIV:
+					case YETI8_INSTRUCTION_AND:
+					case YETI8_INSTRUCTION_OR:
+					case YETI8_INSTRUCTION_XOR:
+					case YETI8_INSTRUCTION_LSH:
+					case YETI8_INSTRUCTION_RSH: {
+						size += 3;
+						break;
+					}
+					case YETI8_INSTRUCTION_NOT: {
+						size += 2;
+						break;
+					}
+					case YETI8_INSTRUCTION_MOV:
+					case YETI8_INSTRUCTION_MVI: {
+						++ i;
+						if (tokens[i].type != Lexer::TokenType::RegisterParameter) {
+							Errors::Expected(
+								"register", fname, tokens[i].line,
+								Lexer::TokenTypeAsString(tokens[i].type)
+							);
+						}
+						auto reg     = Compiler::StringToRegister(tokens[i].contents);
+						auto regSize = Compiler::RegSize(reg);
+
+						size += 2 + regSize;
+						break;
+					}
+					default: {
+						fprintf(
+							stderr, "[ERROR] %s:%lli: Unrecognised instruction %i\n",
+							fname.c_str(), (long long int) tokens[i].line, instruction
+						);
+						exit(EXIT_FAILURE);
+					}
+				}
+				break;
+			}
+			case Lexer::TokenType::Label: {
+				fprintf(stderr, "warning: labels seem to cause undesired effects in yeti-8\n");
+				ret[tokens[i].contents] = size;
+				break;
+			}
+			default: break;
+		}
+	}
+
+	return ret;
+}
+
 uint8_t Compiler::StringToOpcode(std::string str) {
 	if (str == "nop") {
 		return YETI8_INSTRUCTION_NOP;
@@ -130,12 +206,33 @@ std::vector <uint8_t> Compiler::Compile(
 ) {
 	std::vector <uint8_t> ret;
 
+
+	auto labels = Compiler::GenerateLabels(fname, tokens);
+
 	for (size_t i = 0; i < tokens.size(); ++i) {
 		switch (tokens[i].type) {
+			case Lexer::TokenType::Label:
 			case Lexer::TokenType::End: break;
 			case Lexer::TokenType::Opcode: {
 				Lexer::Token opcode = tokens[i];
 				uint8_t      opcodeByte = Compiler::StringToOpcode(opcode.contents);
+
+				/*bool found = false;
+				for (auto& size : lineSizes) {
+					if (size.first == tokens[i].line) {
+						found              = true;
+						currentBinarySize += size.second;
+					}
+				}
+
+				if (!found) {
+					fprintf(
+						stderr,
+						"[ERROR] %s:%lli Size of line was not calculated\nThis is a bug\n",
+						fname.c_str(), (long long int) tokens[i].line
+					);
+					exit(EXIT_FAILURE);
+				}*/
 
 				ret.push_back(opcodeByte);
 				switch (opcodeByte) {
@@ -214,10 +311,35 @@ std::vector <uint8_t> Compiler::Compile(
 						
 						++ i;
 						if (tokens[i].type != Lexer::TokenType::IntegerParameter) {
-							Errors::Expected(
-								"integer", fname, tokens[i].line,
-								Lexer::TokenTypeAsString(tokens[i].type)
-							);
+							if (tokens[i].type != Lexer::TokenType::LabelParameter) {
+								Errors::Expected(
+									"integer", fname, tokens[i].line,
+									Lexer::TokenTypeAsString(tokens[i].type)
+								);
+							}
+
+							if (!labels.count(tokens[i].contents)) {
+								fprintf(
+									stderr, "[ERROR] %s:%lli: No such label: %s\n",
+									fname.c_str(), (long long int) tokens[i].line,
+									tokens[i].contents.c_str()
+								);
+								exit(EXIT_FAILURE);
+							}
+							if (Compiler::RegSize(reg) != 2) {
+								fprintf(
+									stderr, "[ERROR] %s:%lli: can't put address in this register\n",
+									fname.c_str(), (long long int) tokens[i].line
+								);
+								exit(EXIT_FAILURE);
+							}
+
+							uint16_t labelPointer = labels[tokens[i].contents];
+							for (auto& byte : Bits::Split16(labelPointer)) {
+								ret.push_back(byte);
+							}
+							
+							continue;
 						}
 
 						if (Compiler::RegSize(reg) == 2) {
