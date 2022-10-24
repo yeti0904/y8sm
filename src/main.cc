@@ -42,4 +42,6 @@ int main(int argc, char** argv) {
 	auto bin    = Compiler::Compile(srcFile, tokens);
 
 	FS::File::Binary::Write(out, bin);
+
+	return 0;
 }
